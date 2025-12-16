@@ -42,7 +42,7 @@ export default function AdminLayout({
     { name: 'Dashboard', href: '/admin/dashboard' },
     { name: 'Products', href: '/admin/products' },
     { name: 'Orders', href: '/admin/orders' },
-    { name: 'Settings', href: '/admin/settings' },
+    { name: 'Users', href: '/admin/users' },
   ];
 
   return (
@@ -56,7 +56,7 @@ export default function AdminLayout({
           {navigation.map((item) => (
             <Link
               key={item.name}
-              href={item.href}
+              href={item.href as any}
               className={`${pathname === item.href
                 ? 'bg-indigo-600 text-white'
                 : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
