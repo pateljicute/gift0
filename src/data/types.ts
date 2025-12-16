@@ -73,10 +73,13 @@ export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | '
 export interface Order {
   id: string;
   date: string;
+  created_at?: string;
   status: OrderStatus;
   items: CartItem[];
   total: number;
   shippingAddress: Address;
+  gift_name?: string;
+  gift_image_url?: string;
 }
 
 // Filter Types

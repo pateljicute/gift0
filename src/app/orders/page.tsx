@@ -62,9 +62,12 @@ export default function MyOrdersPage() {
             <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-center">
                 <h1 className="text-2xl font-bold text-white mb-4">Please Sign In</h1>
                 <p className="text-slate-400 mb-6">You need to be logged in to view your orders.</p>
-                <Link href="/login" className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700">
-                    Go to Login
-                </Link>
+                <button
+                    onClick={() => window.location.href = '/'}
+                    className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                    Go to Home & Sign In
+                </button>
             </div>
         );
     }
@@ -99,7 +102,7 @@ export default function MyOrdersPage() {
                                     </div>
                                     <div>
                                         <div className="text-xs text-slate-500 uppercase tracking-wide">Date</div>
-                                        <div className="text-sm text-white">{new Date(order.date || order.created_at).toLocaleDateString()}</div>
+                                        <div className="text-sm text-white">{new Date(order.date || order.created_at || Date.now()).toLocaleDateString()}</div>
                                     </div>
                                     <div>
                                         <div className="text-xs text-slate-500 uppercase tracking-wide">Total</div>
