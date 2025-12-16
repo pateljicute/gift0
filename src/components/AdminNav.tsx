@@ -10,7 +10,7 @@ export default function AdminNav() {
     { name: 'Dashboard', href: '/admin/dashboard' },
     { name: 'Products', href: '/admin/products' },
     { name: 'Orders', href: '/admin/orders' },
-    { name: 'Settings', href: '/admin/settings' },
+    { name: 'Users', href: '/admin/users' },
   ];
 
   return (
@@ -18,12 +18,11 @@ export default function AdminNav() {
       {navigation.map((item) => (
         <Link
           key={item.name}
-          href={item.href}
-          className={`${
-            pathname === item.href
+          href={item.href as any}
+          className={`${pathname === item.href
               ? 'bg-indigo-600 text-white'
               : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-          } group flex items-center px-2 py-2 text-base font-medium rounded-md`}
+            } group flex items-center px-2 py-2 text-base font-medium rounded-md`}
         >
           {item.name}
         </Link>
