@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import { formatCurrency } from '@/utils/format';
 
 interface OrderItem {
@@ -29,7 +29,7 @@ interface OrderData {
 }
 
 export default function OrdersManagement() {
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [loading, setLoading] = useState(true);
 

@@ -4,14 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import { formatCurrency } from '@/utils/format';
 
 export default function CheckoutPage() {
   const { cart, clearCart, unlockedGift } = useCart();
   const { user, signInWithGoogle, loading: authLoading } = useAuth();
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
 
   // Status: idle | processing | success | error
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');

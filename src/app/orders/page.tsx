@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatCurrency } from '@/utils/format';
@@ -16,7 +16,7 @@ export default function MyOrdersPage() {
     const { user, loading: authLoading } = useAuth();
     const [orders, setOrders] = useState<OrderWithItems[]>([]);
     const [loading, setLoading] = useState(true);
-    const supabase = createClientComponentClient();
+    const supabase = createClient();
 
     useEffect(() => {
         if (!user) return;

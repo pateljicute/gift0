@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'; // Supabase Client
+import { createClient } from '@/utils/supabase/client'; // Supabase Client
 
 // --- Types ---
 interface Category {
@@ -30,7 +30,7 @@ interface ProductFormData {
 }
 
 export default function AddProductPage() {
-    const supabase = createClientComponentClient();
+    const supabase = createClient();
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
 

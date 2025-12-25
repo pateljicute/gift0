@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import { formatCurrency } from '@/utils/format';
 import Image from 'next/image';
 
@@ -22,7 +22,7 @@ interface GiftTier {
 }
 
 export default function GiftManagementPage() {
-    const supabase = createClientComponentClient();
+    const supabase = createClient();
     const [tiers, setTiers] = useState<GiftTier[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);

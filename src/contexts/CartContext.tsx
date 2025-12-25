@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import { Product, CartItem, Cart } from '@/data/types';
 import Link from 'next/link';
 
@@ -49,7 +49,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         itemCount: 0,
     });
     const [isCartOpen, setIsCartOpen] = useState(false);
-    const supabase = createClientComponentClient();
+    const supabase = createClient();
 
     // Gift State
     const [giftTiers, setGiftTiers] = useState<GiftTier[]>([]);

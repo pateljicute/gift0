@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import { createSlug } from '@/utils/format';
 import ImageUpload from '@/components/admin/ImageUpload';
 import { Category } from '@/data/types';
 
 export default function NewProductPage() {
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
 

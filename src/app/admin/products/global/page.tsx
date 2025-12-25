@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import Image from 'next/image';
 
 type Product = {
@@ -16,7 +16,7 @@ type Product = {
 };
 
 export default function GlobalProductsPage() {
-    const supabase = createClientComponentClient();
+    const supabase = createClient();
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import Modal from '@/components/ui/Modal';
 
 type Vendor = {
@@ -14,7 +14,7 @@ type Vendor = {
 };
 
 export default function ActiveSellersPage() {
-    const supabase = createClientComponentClient();
+    const supabase = createClient();
     const [vendors, setVendors] = useState<Vendor[]>([]);
     const [loading, setLoading] = useState(true);
 

@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 
 export default function AdminDashboard() {
-    const supabase = createClientComponentClient();
+    const supabase = createClient();
     const [counts, setCounts] = useState({
         users: 0,
         orders: 0,

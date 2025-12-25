@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
 
 interface Category {
@@ -12,7 +12,7 @@ interface Category {
 }
 
 export default function EditProductPage({ params }: { params: { id: string } }) {
-    const supabase = createClientComponentClient();
+    const supabase = createClient();
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);

@@ -1,11 +1,10 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 import { Product, Category } from './types';
 import { MOCK_PRODUCTS, MOCK_CATEGORIES } from './mock_data';
 
 // Dynamic Server Client
 const getSupabase = () => {
-    return createServerComponentClient({ cookies });
+    return createClient();
 };
 
 // Helper for consistent error handling and logging
