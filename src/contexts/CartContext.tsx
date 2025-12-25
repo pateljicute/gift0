@@ -147,11 +147,15 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
             const { total, itemCount } = calculateTotals(newItems);
 
-            return {
+            const newCart = {
                 items: newItems,
                 total,
                 itemCount,
             };
+
+            // DIRECTLY SAVE TO LOCAL STORAGE to prevent race conditions with navigation
+            localStorage.setItem('giftcenter_cart', JSON.stringify(newCart));
+            return newCart;
         });
 
         // Open cart when item is added

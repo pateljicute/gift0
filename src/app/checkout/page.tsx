@@ -9,12 +9,14 @@ import { formatCurrency } from '@/utils/format';
 
 export default function CheckoutPage() {
   const { cart, clearCart, unlockedGift } = useCart();
-  const { user, signInWithGoogle, loading: authLoading } = useAuth(); // Create signInWithGoogle usage
+  const { user, signInWithGoogle, loading: authLoading } = useAuth();
   const router = useRouter();
   const supabase = createClientComponentClient();
 
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  // Status: idle | processing | success | error
+  const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -53,9 +55,19 @@ export default function CheckoutPage() {
     loadProfile();
   }, [user, supabase]);
 
+  const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'delivery'>('pickup');
+  const [whatsappUrl, setWhatsappUrl] = useState('');
+
   // Check auth status
   if (authLoading) {
-    return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+          <p>Loading your profile...</p>
+        </div>
+      </div>
+    );
   }
 
   // Force Login if not authenticated
@@ -92,10 +104,27 @@ export default function CheckoutPage() {
     );
   }
 
-  // Auth is confirmed
-  const checkoutTotal = cart.items.reduce((sum, item) => {
-    return sum + (item.product.price * item.quantity); // Always full price
-  }, 0);
+  // Calculate Totals
+  const calculateTotals = () => {
+    const subtotal = cart.items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+    let delivery = 0;
+    if (deliveryMethod === 'delivery') {
+      if (subtotal < 1000) {
+        delivery = cart.items.reduce((sum, item) => {
+          const charge = item.product.delivery_charge || 40;
+          return sum + (charge * item.quantity);
+        }, 0);
+      }
+    }
+
+    return {
+      subtotal,
+      delivery,
+      total: subtotal + delivery
+    };
+  };
+
+  const { subtotal, delivery, total } = calculateTotals();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -103,16 +132,19 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setStatus('processing');
+    setErrorMessage('');
 
     try {
-      const fullAddress = `${formData.houseNo}, ${formData.street}, ${formData.city}, ${formData.state} - ${formData.zip}`;
+      const fullAddress = deliveryMethod === 'pickup'
+        ? 'Pickup from Shop'
+        : `${formData.houseNo}, ${formData.street}, ${formData.city}, ${formData.state} - ${formData.zip}`;
 
-      // 0. Update Profile with latest address (Background sync)
-      if (user) {
-        supabase.from('profiles').upsert({
+      // 0. Update Profile (Only if Home Delivery, to save address)
+      if (user && deliveryMethod === 'delivery') {
+        const { error: profileError } = await supabase.from('profiles').upsert({
           id: user.id,
-          full_name: formData.name, // Update name if changed
+          full_name: formData.name,
           phone: formData.phone,
           house_no: formData.houseNo,
           street: formData.street,
@@ -120,81 +152,84 @@ export default function CheckoutPage() {
           state: formData.state,
           zip: formData.zip,
           updated_at: new Date().toISOString(),
-        }).then(({ error }) => {
-          if (error) console.error('Failed to save address to profile:', error);
         });
+        if (profileError) console.warn('Failed to save profile address:', profileError);
       }
 
-      // 1. Create Order with Timeout Safety
-      const createOrderPromise = supabase.from('orders').insert({
-        user_id: user.id, // User is guaranteed
-        status: 'pending',
-        total: checkoutTotal,
-        customer_address: `${formData.name}, ${formData.phone}\n${fullAddress}`,
-        customer_name: formData.name,
-        customer_phone: formData.phone,
-        // Add Gift Details
-        gift_name: unlockedGift ? (unlockedGift.product?.name || unlockedGift.gift_name) : null,
-        gift_image_url: unlockedGift ? (unlockedGift.product?.images?.[0] || unlockedGift.gift_image_url) : null
-      }).select().single();
+      // 1. Create Order
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user.id || null,
+          customer_name: formData.name,
+          customer_email: user.email,
+          customer_phone: formData.phone,
+          customer_address: fullAddress,
+          total_price: total,
+          status: 'pending',
+          gift_name: unlockedGift ? (unlockedGift.product?.name || unlockedGift.gift_name) : null,
+          gift_image_url: unlockedGift ? (unlockedGift.product?.images?.[0] || unlockedGift.gift_image_url) : null
+        })
+        .select()
+        .single();
 
-      // Timeout after 15 seconds
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out. Please check your internet connection or try again.')), 15000)
-      );
+      if (orderError) throw orderError;
 
-      const { data: order, error } = await Promise.race([createOrderPromise, timeoutPromise]) as any;
+      // 2. Save Order Items
+      const orderItems = cart.items.map(item => ({
+        order_id: order.id,
+        product_id: item.product.id,
+        quantity: item.quantity,
+        price_at_time: item.product.price
+      }));
 
-      if (error) throw error;
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
 
-      // 2. Create Items
-      if (order) {
-        const orderItems = cart.items.map(item => ({
-          order_id: order.id,
-          product_id: item.product.id,
-          quantity: item.quantity,
-          price: item.product.price // Always full price
-        }));
-        const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
-        if (itemsError) throw itemsError;
-      }
+      if (itemsError) throw itemsError;
 
-      // 3. Construct Message
-      let message = `*New Order #${order?.id?.slice(0, 8)}*\n\n`;
-      message += `*Customer:* ${formData.name}\n`;
-      message += `*Phone:* ${formData.phone}\n`;
-      message += `*Address:* ${fullAddress}\n\n`;
-      message += `*Items:*\n`;
+      // 3. Construct WhatsApp Message
+      let message = `*New Order Placed!* 🛍️%0A%0A`;
+      message += `*Customer Details:*%0A`;
+      message += `Name: ${formData.name}%0A`;
+      message += `Phone: ${formData.phone}%0A`;
+      message += `${deliveryMethod === 'delivery' ? `Address: ${fullAddress}%0A` : `*PICKUP FROM SHOP* 🏪%0A`}`;
+
+      message += `%0A*Order Items:*%0A`;
       cart.items.forEach(item => {
-        message += `- ${item.product.name} (x${item.quantity})\n`;
+        message += `- ${item.product.name} (x${item.quantity})%0A`;
       });
 
-      // Add Gift to WhatsApp Message
       if (unlockedGift) {
-        const giftName = unlockedGift.product?.name || unlockedGift.gift_name;
-        message += `\n🎁 *FREE GIFT UNLOCKED: ${giftName}*\n`;
+        message += `🎁 FREE GIFT: ${unlockedGift.product?.name || unlockedGift.gift_name}%0A`;
       }
 
-      message += `\n*Total: ${formatCurrency(checkoutTotal)}*`;
+      message += `%0A----------------%0A`;
+      message += `Subtotal: ₹${subtotal.toFixed(2)}%0A`;
+      message += `${deliveryMethod === 'delivery' ? `Delivery Fee: ${delivery === 0 ? 'FREE' : `₹${delivery.toFixed(2)}`}%0A` : ''}`;
+      message += `*Total Amount: ₹${total.toFixed(2)}*`;
 
-      const whatsappUrl = `https://wa.me/917470724553?text=${encodeURIComponent(message)}`;
+      const generatedLink = `https://wa.me/917470724553?text=${encodeURIComponent(message)}`;
+      setWhatsappUrl(generatedLink);
 
-      setSuccess(true);
+      // 4. Success State
+      setStatus('success');
       clearCart();
 
-      // Short delay before redirect
+      // 5. Attempt Auto-Redirect after short delay
       setTimeout(() => {
-        window.location.href = whatsappUrl;
-      }, 3000);
+        window.location.href = generatedLink;
+      }, 1500);
 
-    } catch (error: any) {
-      console.error('Checkout error:', error);
-      alert('Failed to place order: ' + (error.message || 'Unknown error'));
-      setLoading(false);
+    } catch (err: any) {
+      console.error('Checkout Error:', err);
+      setStatus('error');
+      setErrorMessage(err.message || 'An unexpected error occurred. Please try again.');
     }
   };
 
-  if (success) {
+  if (status === 'success') {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-center animate-fade-in">
         <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-green-500/50 animate-bounce">
@@ -202,19 +237,16 @@ export default function CheckoutPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h1 className="text-4xl font-display font-bold text-white mb-2">Congratulations!</h1>
-        <p className="text-xl text-slate-300 mb-8">Your order has been placed successfully.</p>
+        <h1 className="text-4xl font-display font-bold text-white mb-2">Order Placed!</h1>
+        <p className="text-xl text-slate-300 mb-8">Redirecting you to WhatsApp to complete your order...</p>
 
-        <div className="p-4 bg-slate-900 rounded-xl border border-slate-800 max-w-sm w-full mx-auto mb-8">
-          <p className="text-slate-400 text-sm mb-2">Redirecting to WhatsApp for confirmation...</p>
-          <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
-            <div className="h-full bg-green-500 animate-[progress_3s_linear_forwards]" style={{ width: '0%' }} />
-          </div>
-        </div>
-
-        <p className="text-sm text-slate-500">
-          If you are not redirected automatically, <a href="#" className="underline text-green-400">click here</a>.
-        </p>
+        <a
+          href={whatsappUrl}
+          className="bg-[#25D366] text-white font-bold py-3 px-8 rounded-full hover:bg-[#128C7E] transition-colors flex items-center gap-2 shadow-lg"
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.463 1.065 2.876 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" /></svg>
+          Click here if not redirected
+        </a>
       </div>
     );
   }
@@ -231,46 +263,47 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-display font-bold text-white mb-8 text-center">Secure Checkout</h1>
+    <div className="min-h-screen pt-24 pb-12 bg-slate-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-display font-bold text-white mb-8">Checkout</h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Order Summary (Left/Top) */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-              <h2 className="text-xl font-semibold text-white mb-4">Order Summary</h2>
-              <div className="space-y-4 mb-4">
-                {cart.items.map((item) => (
-                  <div key={item.product.id} className="flex justify-between items-center text-slate-300">
-                    <div className="flex-1">
-                      <div className="text-sm text-white font-medium">{item.product.name}</div>
-                      <div className="text-xs text-slate-500">Qty: {item.quantity}</div>
-                    </div>
-                    <div className="text-sm font-medium">
-                      {formatCurrency(item.product.price * item.quantity)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="border-t border-slate-800 pt-4 flex justify-between items-center">
-                <span className="text-lg font-bold text-white">Total</span>
-                <span className="text-xl font-bold text-purple-400">{formatCurrency(checkoutTotal)}</span>
-              </div>
+        {/* Error Banner */}
+        {status === 'error' && errorMessage && (
+          <div className="bg-red-500/10 border border-red-500/50 text-red-200 p-4 rounded-xl mb-6 flex items-start gap-3">
+            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <p className="font-bold">Order Failed</p>
+              <p className="text-sm">{errorMessage}</p>
             </div>
           </div>
+        )}
 
-          {/* Detailed Form (Right/Bottom) */}
-          <div className="lg:col-span-2 bg-slate-900 p-6 rounded-xl border border-slate-800">
-            <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-              <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-              Delivery Address
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          {/* LEFT COLUMN: Forms */}
+          <div>
+            <div className="flex gap-4 mb-8">
+              <button
+                onClick={() => setDeliveryMethod('pickup')}
+                className={`flex-1 py-4 rounded-xl border-2 font-bold transition-all ${deliveryMethod === 'pickup' ? 'border-purple-500 bg-purple-500/10 text-white' : 'border-slate-800 bg-slate-900 text-slate-400'}`}
+              >
+                Visit Shop
+              </button>
+              <button
+                onClick={() => setDeliveryMethod('delivery')}
+                className={`flex-1 py-4 rounded-xl border-2 font-bold transition-all ${deliveryMethod === 'delivery' ? 'border-purple-500 bg-purple-500/10 text-white' : 'border-slate-800 bg-slate-900 text-slate-400'}`}
+              >
+                Home Delivery
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Name and Phone Inputs */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">Full Name</label>
-                  <input type="text" name="name" required value={formData.name} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" placeholder="John Doe" />
+                  <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">Name</label>
+                  <input type="text" name="name" required value={formData.name} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" placeholder="John Doe" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">Phone Number</label>
@@ -278,47 +311,114 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-800/50">
-                <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">House No / Building Name</label>
-                <input type="text" name="houseNo" required value={formData.houseNo} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" placeholder="Flat 101, Galaxy Apartments" />
-              </div>
+              {deliveryMethod === 'delivery' && (
+                <>
+                  <div className="pt-4 border-t border-slate-800/50">
+                    <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">House No / Building Name</label>
+                    <input type="text" name="houseNo" required value={formData.houseNo} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" placeholder="Flat 101, Galaxy Apartments" />
+                  </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">Street / Colony / Area</label>
-                <input type="text" name="street" required value={formData.street} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" placeholder="Sector 4, Main Road" />
-              </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">Street / Colony / Area</label>
+                    <input type="text" name="street" required value={formData.street} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" placeholder="Sector 4, Main Road" />
+                  </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">City</label>
-                  <input type="text" name="city" required value={formData.city} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">State</label>
-                  <input type="text" name="state" required value={formData.state} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" />
-                </div>
-                <div className="col-span-2 md:col-span-1">
-                  <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">Pincode</label>
-                  <input type="text" name="zip" required value={formData.zip} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" />
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">City</label>
+                      <input type="text" name="city" required value={formData.city} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">State</label>
+                      <input type="text" name="state" required value={formData.state} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" />
+                    </div>
+                    <div className="col-span-2 md:col-span-1">
+                      <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">Pincode</label>
+                      <input type="text" name="zip" required value={formData.zip} onChange={handleChange} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" />
+                    </div>
+                  </div>
+                </>
+              )}
 
+              {/* Submit Button with Loading State */}
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full mt-8 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-green-500/30 hover:shadow-green-500/50 transform hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                disabled={status === 'processing'}
+                className={`w-full mt-8 font-bold py-4 rounded-xl shadow-lg transform transition-all flex items-center justify-center gap-2 ${status === 'processing'
+                  ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                  : 'bg-[#25D366] hover:bg-[#128C7E] text-white hover:scale-[1.02] shadow-green-500/30'
+                  }`}
               >
-                {loading ? 'Processing...' : (
+                {status === 'processing' ? (
                   <>
-                    <span>Confirm Order on WhatsApp</span>
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.463 1.065 2.876 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" /></svg>
+                    <div className="w-5 h-5 border-2 border-slate-400 border-t-white rounded-full animate-spin" />
+                    <span>Processing Order...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.463 1.065 2.876 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" /></svg>
+                    <span>{`Place Order • ₹${total.toFixed(2)}`}</span>
                   </>
                 )}
               </button>
+
               <p className="text-xs text-slate-500 text-center mt-4">
                 By placing this order, you will be redirected to WhatsApp to communicate directly with our team.
               </p>
             </form>
+          </div>
+
+          {/* RIGHT COLUMN: Order Summary */}
+          <div>
+            <div className="bg-slate-800 rounded-2xl p-6 sticky top-24">
+              <h2 className="text-xl font-bold text-white mb-6">Order Summary</h2>
+
+              <div className="space-y-4 mb-6">
+                {cart.items.map((item) => (
+                  <div key={item.product.id} className="flex gap-4">
+                    <div className="w-16 h-16 bg-slate-700 rounded-lg overflow-hidden flex-shrink-0 relative">
+                      {item.product.images?.[0] && <img src={item.product.images[0]} alt={item.product.name} className="w-full h-full object-cover" />}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-white font-medium text-sm line-clamp-2">{item.product.name}</h3>
+                      <p className="text-slate-400 text-xs mt-1">Qty: {item.quantity}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-white font-medium">{formatCurrency(item.product.price * item.quantity)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {unlockedGift && (
+                <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4 mb-6 flex items-center gap-3">
+                  <span className="text-xl">🎁</span>
+                  <div>
+                    <p className="text-purple-400 font-bold text-sm">Free Gift Unlocked!</p>
+                    <p className="text-slate-400 text-xs">{unlockedGift.product?.name || unlockedGift.gift_name}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3 pt-6 border-t border-slate-700">
+                <div className="flex justify-between text-slate-400">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(subtotal)}</span>
+                </div>
+                {deliveryMethod === 'delivery' && (
+                  <div className="flex justify-between text-slate-400">
+                    <span>Delivery Fee</span>
+                    <span className={delivery === 0 ? 'text-green-400' : 'text-white'}>
+                      {delivery === 0 ? 'FREE' : `₹${delivery.toFixed(2)}`}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-4 border-t border-slate-700">
+                  <span className="text-lg font-bold text-white">Total</span>
+                  <span className="text-2xl font-bold text-purple-400">{formatCurrency(total)}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

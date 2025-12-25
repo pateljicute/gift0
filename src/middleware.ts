@@ -40,7 +40,7 @@ export async function middleware(req: NextRequest) {
 
     // Check if user is authorized admin
     // Note: We access env var from process.env which is available in middleware
-    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminEmail = process.env.ADMIN_EMAIL || 'sushilpatel7489@gmail.com';
     const userEmail = session.user.email;
 
     const isSuperAdmin = adminEmail && userEmail?.toLowerCase() === adminEmail?.toLowerCase();
@@ -62,10 +62,11 @@ export async function middleware(req: NextRequest) {
     // if (superAdminPaths.some(p => req.nextUrl.pathname.startsWith(p)) && !isSuperAdmin) { ... }
 
     if (!isSuperAdmin) {
-      console.warn(`[Middleware] Non-Admin User ${userEmail} accessing Admin Area.`);
-      // Allow them to proceed, assuming they are Vendors.
-      // If they try to touch "Super Admin" data, RLS will block them.
-      return res;
+      console.warn(`[Middleware] Non-Admin User ${userEmail} attempted to access Admin Area. BLOCKING.`);
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = '/admin/login';
+      redirectUrl.searchParams.set('error', 'Unauthorized: You are not an administrator.');
+      return NextResponse.redirect(redirectUrl);
     }
   }
 

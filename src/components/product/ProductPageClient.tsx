@@ -194,8 +194,7 @@ export default function ProductPageClient({ product, relatedProducts }: ProductP
                         <div className="animate-fade-in space-y-4">
                             <p>{product.description}</p>
                             <p>
-                                Experience premium quality and exceptional craftsmanship with this {product.name}.
-                                Perfect for gifting or adding a touch of elegance to your own space.
+
                             </p>
                         </div>
                     )}

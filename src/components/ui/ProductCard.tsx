@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { Product } from '@/data/types';
 import { formatCurrency } from '@/utils/format';
@@ -34,6 +35,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     const isGift = product.category === 'gift' || product.category === 'gift-items';
     const isFrame = product.category === 'frames';
 
+    const router = useRouter(); // Initialize router
+
     const handleAddToCart = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -52,7 +55,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                             fill
                             className="object-cover"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            priority={true}
+                        // priority={true} // Removed for performance (lazy load by default)
                         />
                     </div>
 
@@ -95,9 +98,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     </h3>
 
                     {/* Category Label */}
-                    <p className="text-xs text-slate-500 mb-3 capitalize">
-                        {String(product.category).replace('-', ' ')}
-                    </p>
+                    <div className="flex items-center gap-2 mb-3">
+                        <p className="text-xs text-slate-500 capitalize">
+                            {String(product.category).replace('-', ' ')}
+                        </p>
+                        {product.specifications?.flavor && (
+                            <span className="text-[10px] uppercase tracking-wider bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/20">
+                                {product.specifications.flavor}
+                            </span>
+                        )}
+                    </div>
 
                     {/* Price & Actions Row */}
                     <div className="mt-auto pt-4 flex flex-col gap-3">
@@ -119,25 +129,27 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
                         {/* Action Custom Button */}
                         <div className="w-full">
-                            {isGift ? (
-                                <Button
-                                    size="sm"
-                                    variant="primary"
-                                    onClick={handleAddToCart}
-                                    disabled={!product.inStock}
-                                    fullWidth
-                                    className="shadow-lg shadow-purple-500/20"
-                                >
-                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                    </svg>
-                                    ADD TO CART
-                                </Button>
-                            ) : (
-                                <span className="bg-slate-800 text-white text-xs px-3 py-2 rounded-lg border border-slate-600 block text-center cursor-pointer hover:bg-slate-700">
-                                    View Details
-                                </span>
-                            )}
+                            <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={(e) => {
+                                    if (isGift) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        addToCart(product, 1);
+                                        router.push('/checkout');
+                                    }
+                                    // Else: Do nothing, let event bubble to Link -> Product Details
+                                }}
+                                disabled={!product.inStock}
+                                fullWidth
+                                className="shadow-lg shadow-purple-500/20 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 border-none"
+                            >
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                BUY NOW
+                            </Button>
                         </div>
                     </div>
                 </div>

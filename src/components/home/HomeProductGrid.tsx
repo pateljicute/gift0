@@ -9,12 +9,13 @@ interface HomeProductGridProps {
 }
 
 export default function HomeProductGrid({ products }: HomeProductGridProps) {
-    const [filter, setFilter] = useState<'all' | 'gift' | 'frames'>('all');
+    const [filter, setFilter] = useState<'all' | 'gift' | 'frames' | 'cakes'>('all');
 
     const filteredProducts = products.filter(product => {
         if (filter === 'all') return true;
-        if (filter === 'gift') return product.category === 'gift' || product.category === 'gift-items';
+        if (filter === 'gift') return product.category === 'gift-items';
         if (filter === 'frames') return product.category === 'frames';
+        if (filter === 'cakes') return product.category === 'cakes';
         return true;
     });
 
@@ -36,8 +37,8 @@ export default function HomeProductGrid({ products }: HomeProductGridProps) {
                     <button
                         onClick={() => setFilter('all')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filter === 'all'
-                                ? 'bg-gradient-primary text-white shadow-lg shadow-purple-500/30'
-                                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            ? 'bg-gradient-primary text-white shadow-lg shadow-purple-500/30'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
                             }`}
                     >
                         All
@@ -45,8 +46,8 @@ export default function HomeProductGrid({ products }: HomeProductGridProps) {
                     <button
                         onClick={() => setFilter('gift')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filter === 'gift'
-                                ? 'bg-gradient-primary text-white shadow-lg shadow-purple-500/30'
-                                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            ? 'bg-gradient-primary text-white shadow-lg shadow-purple-500/30'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
                             }`}
                     >
                         Gifts
@@ -54,11 +55,20 @@ export default function HomeProductGrid({ products }: HomeProductGridProps) {
                     <button
                         onClick={() => setFilter('frames')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filter === 'frames'
-                                ? 'bg-gradient-primary text-white shadow-lg shadow-purple-500/30'
-                                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            ? 'bg-gradient-primary text-white shadow-lg shadow-purple-500/30'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
                             }`}
                     >
                         Frames
+                    </button>
+                    <button
+                        onClick={() => setFilter('cakes')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filter === 'cakes'
+                            ? 'bg-gradient-primary text-white shadow-lg shadow-purple-500/30'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            }`}
+                    >
+                        Cakes
                     </button>
                 </div>
             </div>

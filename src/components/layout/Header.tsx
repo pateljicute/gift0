@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { Category } from '@/data/types';
@@ -48,7 +49,7 @@ const Header: React.FC<HeaderProps> = ({ categories = [] }) => {
                             {navLinks.map((link) => (
                                 <Link
                                     key={link.href}
-                                    href={link.href}
+                                    href={link.href as any}
                                     className="text-slate-300 hover:text-white transition-colors font-medium"
                                 >
                                     {link.name}
@@ -70,10 +71,12 @@ const Header: React.FC<HeaderProps> = ({ categories = [] }) => {
                                 <div className="relative group/profile">
                                     <button className="hidden md:flex items-center gap-2 p-2 text-slate-400 hover:text-white transition-colors">
                                         {user.user_metadata?.avatar_url ? (
-                                            <img
+                                            <Image
                                                 src={user.user_metadata.avatar_url}
                                                 alt="Profile"
-                                                className="w-8 h-8 rounded-full border border-slate-600"
+                                                width={32}
+                                                height={32}
+                                                className="rounded-full border border-slate-600"
                                             />
                                         ) : (
                                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

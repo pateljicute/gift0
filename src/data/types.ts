@@ -9,9 +9,17 @@ export interface Product {
   category: CategorySlug;
   images: string[];
   inStock: boolean;
-  featured?: boolean;
+  is_featured: boolean;
+  is_archived: boolean;
   variants?: ProductVariant[];
-  specifications?: Record<string, string>;
+  specifications?: Record<string, any>;
+  delivery_charge?: number;
+  weight?: number; // kg
+  dimensions?: {
+    height: number;
+    width: number;
+    length: number;
+  };
   rating?: number;
   reviewCount?: number;
 }
@@ -23,7 +31,7 @@ export interface ProductVariant {
 }
 
 // Category Types
-export type CategorySlug = 'sublimation-mugs' | 'frames' | 'gift-items';
+export type CategorySlug = 'sublimation-mugs' | 'frames' | 'gift-items' | 'cakes' | 'gift';
 
 export interface Category {
   id: string;

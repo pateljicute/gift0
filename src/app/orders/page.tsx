@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Link from 'next/link';
+import Image from 'next/image';
 import { formatCurrency } from '@/utils/format';
 import { Order } from '@/data/types';
 
@@ -98,7 +99,7 @@ export default function MyOrdersPage() {
                                 <div className="p-4 border-b border-slate-800 flex flex-wrap justify-between items-center gap-4 bg-slate-800/50">
                                     <div>
                                         <div className="text-xs text-slate-500 uppercase tracking-wide">Order ID</div>
-                                        <div className="text-sm font-mono text-white">#{order.id.slice(0, 8)}</div>
+                                        <div className="text-sm font-mono text-white">#{String(order.id).slice(0, 8)}</div>
                                     </div>
                                     <div>
                                         <div className="text-xs text-slate-500 uppercase tracking-wide">Date</div>
@@ -126,14 +127,20 @@ export default function MyOrdersPage() {
                                                 <div className="w-16 h-16 bg-slate-800 rounded-lg overflow-hidden flex-shrink-0 relative border border-slate-700">
                                                     {/* Simple Image Fallback */}
                                                     {(item.product?.images?.[0] || item.product?.image_url) ? (
-                                                        <img src={item.product?.images?.[0] || item.product?.image_url} alt="" className="w-full h-full object-cover" />
+                                                        <Image
+                                                            src={item.product?.images?.[0] || item.product?.image_url}
+                                                            alt=""
+                                                            fill
+                                                            className="object-cover"
+                                                            sizes="64px"
+                                                        />
                                                     ) : (
                                                         <div className="w-full h-full flex items-center justify-center text-slate-600">No Img</div>
                                                     )}
                                                 </div>
                                                 <div className="flex-1">
                                                     <h4 className="text-sm font-medium text-white">{item.product?.name || 'Unknown Product'}</h4>
-                                                    <div className="text-xs text-slate-500">Qty: {item.quantity} × {formatCurrency(item.price)}</div>
+                                                    <div className="text-xs text-slate-500">Qty: {item.quantity} × {formatCurrency(item.price_at_time || item.product?.price || 0)}</div>
                                                 </div>
                                             </div>
                                         ))}
@@ -143,7 +150,7 @@ export default function MyOrdersPage() {
                                             <div className="flex gap-4 items-center mt-2 pt-2 border-t border-slate-800/50">
                                                 <div className="w-16 h-16 bg-purple-900/20 rounded-lg overflow-hidden flex-shrink-0 relative border border-purple-500/30 flex items-center justify-center">
                                                     {order.gift_image_url ? (
-                                                        <img src={order.gift_image_url} alt="Gift" className="w-full h-full object-cover" />
+                                                        <Image src={order.gift_image_url} alt="Gift" fill className="object-cover" sizes="64px" />
                                                     ) : (
                                                         <span className="text-2xl">🎁</span>
                                                     )}

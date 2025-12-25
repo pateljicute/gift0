@@ -32,8 +32,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
-    // Hardcoded admin email for now as per requirements
-    const ADMIN_EMAIL = 'sushilpatel7489@gmail.com';
+    // Use environment variable for admin email (Security Best Practice), fallback for immediate access
+    const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'sushilpatel7489@gmail.com';
 
     useEffect(() => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -71,7 +71,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return () => subscription.unsubscribe();
     }, []);
 
-    const isAdmin = user?.email === ADMIN_EMAIL;
+    const isAdmin = !!(user?.email && ADMIN_EMAIL && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
 
     const signInWithGoogle = async () => {
         try {
@@ -84,10 +84,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (error) throw error;
         } catch (error: any) {
             console.error('Error signing in with Google:', error);
+            // Replaced alert with console error for better UX. 
+            // TODO: Implement a proper Toast notification here.
             if (error?.status === 429 || error?.code === 'over_request_rate_limit') {
-                alert('Too many login attempts. Please wait 2 minutes before trying again.');
-            } else {
-                alert('Error signing in with Google: ' + (error?.message || 'Unknown error'));
+                console.error('Too many login attempts. Please wait 2 minutes before trying again.');
             }
         }
     };
