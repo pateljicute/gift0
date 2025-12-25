@@ -58,9 +58,9 @@ const CartDrawer: React.FC = () => {
                         <div className="mb-6 bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-purple-500/30 rounded-xl p-4 flex items-center gap-4 animate-fade-in relative overflow-hidden">
                             <div className="absolute inset-0 bg-white/5 animate-[shimmer_2s_infinite]" />
                             <div className="relative w-16 h-16 bg-slate-800 rounded-lg overflow-hidden flex-shrink-0 border border-purple-500/50">
-                                {unlockedGift.product?.images?.[0] || unlockedGift.product?.image_url || unlockedGift.gift_image_url ? (
+                                {unlockedGift.product?.images?.[0] || unlockedGift.gift_image_url ? (
                                     <Image
-                                        src={unlockedGift.product?.images?.[0] || unlockedGift.product?.image_url || unlockedGift.gift_image_url || ''}
+                                        src={unlockedGift.product?.images?.[0] || unlockedGift.gift_image_url || ''}
                                         alt="Gift"
                                         fill
                                         className="object-cover"

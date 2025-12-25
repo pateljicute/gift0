@@ -39,7 +39,7 @@ export default function IncentiveProgressBar() {
     const giftName = targetTier.product ? targetTier.product.name : targetTier.gift_name;
     // Resolve image
     const giftImage = targetTier.product
-        ? (targetTier.product.images?.[0] || targetTier.product.image_url)
+        ? (targetTier.product.images?.[0])
         : targetTier.gift_image_url;
 
     return (

@@ -81,7 +81,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose, categories = [
                             {navLinks.map((link) => (
                                 <Link
                                     key={link.href}
-                                    href={link.href}
+                                    href={link.href as any}
                                     onClick={onClose}
                                     className="block py-3 px-4 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
                                 >

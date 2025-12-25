@@ -13,15 +13,14 @@ interface CategoryPageClientProps {
 
 export default function CategoryPageClient({ category, initialProducts }: CategoryPageClientProps) {
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
-        sort: 'newest',
-        minPrice: 0,
-        maxPrice: 10000,
-        inStock: false,
+        sortBy: 'newest',
+        priceRange: [0, 10000],
+        inStockOnly: false,
     });
 
     const filteredProducts = useMemo(() => {
         let result = filterProducts(initialProducts, filterOptions);
-        result = sortProducts(result, filterOptions.sort);
+        result = sortProducts(result, filterOptions.sortBy);
         return result;
     }, [initialProducts, filterOptions]);
 
@@ -48,8 +47,7 @@ export default function CategoryPageClient({ category, initialProducts }: Catego
                 {/* Sidebar Filters */}
                 <aside className="lg:w-64 flex-shrink-0 animate-slide-up" style={{ animationDelay: '0.1s' }}>
                     <FilterSidebar
-                        options={filterOptions}
-                        onChange={setFilterOptions}
+                        onFilterChange={setFilterOptions}
                     />
                 </aside>
 

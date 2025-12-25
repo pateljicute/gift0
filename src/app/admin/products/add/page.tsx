@@ -73,7 +73,7 @@ export default function AddProductPage() {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) {
                     // If not logged in, redirect immediately
-                    router.replace('/auth/login'); // Adjust route as needed
+                    router.replace('/admin/login'); // Adjust route as needed
                     return;
                 }
 

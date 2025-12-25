@@ -29,7 +29,8 @@ function transformProduct(dbProduct: any): Product {
         category: categorySlug,
         images: dbProduct.images || [],
         inStock: (dbProduct.stock || 0) > 0,
-        featured: dbProduct.is_featured,
+        is_featured: dbProduct.is_featured,
+        is_archived: false,
         variants: [],
         rating: 5,
         reviewCount: 0,
@@ -146,7 +147,7 @@ export async function getFeaturedProducts(limit = 4): Promise<Product[]> {
 
     } catch (error) {
         handleFetchError('getFeaturedProducts', error);
-        return MOCK_PRODUCTS.filter(p => p.featured).slice(0, limit);
+        return MOCK_PRODUCTS.filter(p => p.is_featured).slice(0, limit);
     }
 }
 

@@ -21,7 +21,7 @@ export default function ProductPageClient({ product, relatedProducts }: ProductP
 
     const handleQuantityChange = (delta: number) => {
         const newQuantity = quantity + delta;
-        if (newQuantity >= 1 && newQuantity <= product.stock) {
+        if (newQuantity >= 1) {
             setQuantity(newQuantity);
         }
     };
@@ -30,8 +30,8 @@ export default function ProductPageClient({ product, relatedProducts }: ProductP
         addToCart(product, quantity, selectedVariant ? { variant: selectedVariant } : undefined);
     };
 
-    const discountPercentage = product.salePrice
-        ? Math.round(((product.price - product.salePrice) / product.price) * 100)
+    const discountPercentage = product.originalPrice
+        ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
         : 0;
 
     return (
@@ -57,8 +57,8 @@ export default function ProductPageClient({ product, relatedProducts }: ProductP
                 <div className="space-y-8 animate-slide-up" style={{ animationDelay: '0.1s' }}>
                     <div>
                         <div className="flex items-center gap-3 mb-4">
-                            {product.isFeatured && <Badge variant="primary">Featured</Badge>}
-                            {product.stock > 0 ? (
+                            {product.is_featured && <Badge variant="primary">Featured</Badge>}
+                            {product.inStock ? (
                                 <Badge variant="success">In Stock</Badge>
                             ) : (
                                 <Badge variant="error">Out of Stock</Badge>
@@ -72,23 +72,23 @@ export default function ProductPageClient({ product, relatedProducts }: ProductP
                                 {[...Array(5)].map((_, i) => (
                                     <svg
                                         key={i}
-                                        className={`w-5 h-5 ${i < Math.floor(product.rating) ? 'fill-current' : 'text-slate-600'}`}
+                                        className={`w-5 h-5 ${i < Math.floor(product.rating || 0) ? 'fill-current' : 'text-slate-600'}`}
                                         viewBox="0 0 20 20"
                                     >
                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                     </svg>
                                 ))}
-                                <span className="ml-2 text-slate-400 text-sm">({product.reviews} reviews)</span>
+                                <span className="ml-2 text-slate-400 text-sm">({product.reviewCount || 0} reviews)</span>
                             </div>
                         </div>
                         <div className="flex items-baseline gap-4">
                             <span className="text-3xl font-bold bg-gradient-brand bg-clip-text text-transparent">
-                                ₹{product.salePrice || product.price}
+                                ₹{product.price}
                             </span>
-                            {product.salePrice && (
+                            {product.originalPrice && product.originalPrice > product.price && (
                                 <>
                                     <span className="text-xl text-slate-500 line-through">
-                                        ₹{product.price}
+                                        ₹{product.originalPrice}
                                     </span>
                                     <span className="text-green-400 text-sm font-medium">
                                         Save {discountPercentage}%
@@ -109,14 +109,14 @@ export default function ProductPageClient({ product, relatedProducts }: ProductP
                             <div className="flex flex-wrap gap-3">
                                 {product.variants.map((variant) => (
                                     <button
-                                        key={variant}
-                                        onClick={() => setSelectedVariant(variant)}
-                                        className={`px-4 py-2 rounded-lg border transition-all ${selectedVariant === variant
+                                        key={variant.id}
+                                        onClick={() => setSelectedVariant(variant.name)}
+                                        className={`px-4 py-2 rounded-lg border transition-all ${selectedVariant === variant.name
                                             ? 'border-purple-500 bg-purple-500/10 text-purple-300'
                                             : 'border-slate-700 text-slate-400 hover:border-slate-600'
                                             }`}
                                     >
-                                        {variant}
+                                        {variant.name}
                                     </button>
                                 ))}
                             </div>
@@ -136,7 +136,7 @@ export default function ProductPageClient({ product, relatedProducts }: ProductP
                             <span className="w-12 text-center font-medium text-white">{quantity}</span>
                             <button
                                 onClick={() => handleQuantityChange(1)}
-                                disabled={quantity >= product.stock}
+                                disabled={false}
                                 className="px-4 py-3 text-slate-400 hover:text-white disabled:opacity-50 transition-colors"
                             >
                                 +
@@ -147,10 +147,10 @@ export default function ProductPageClient({ product, relatedProducts }: ProductP
                                 fullWidth
                                 size="lg"
                                 onClick={handleAddToCart}
-                                disabled={product.stock === 0}
+                                disabled={!product.inStock}
                                 className="h-[50px]"
                             >
-                                {product.stock > 0 ? 'ADD TO CART' : 'Out of Stock'}
+                                {product.inStock ? 'ADD TO CART' : 'Out of Stock'}
                             </Button>
                         </div>
                     </div>
@@ -185,7 +185,7 @@ export default function ProductPageClient({ product, relatedProducts }: ProductP
                             : 'border-transparent text-slate-400 hover:text-white'
                             }`}
                     >
-                        Reviews ({product.reviews})
+                        Reviews ({product.reviewCount || 0})
                     </button>
                 </div>
 
