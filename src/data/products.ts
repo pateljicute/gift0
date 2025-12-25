@@ -3,8 +3,8 @@ import { Product, Category } from './types';
 import { MOCK_PRODUCTS, MOCK_CATEGORIES } from './mock_data';
 
 // Dynamic Server Client
-const getSupabase = () => {
-    return createClient();
+const getSupabase = async () => {
+    return await createClient();
 };
 
 // Helper for consistent error handling and logging
@@ -55,7 +55,7 @@ function transformCategory(dbCategory: any): Category {
 // Fetch all categories
 export async function getCategories(): Promise<Category[]> {
     try {
-        const supabase = getSupabase();
+        const supabase = await getSupabase();
         const { data, error } = await supabase
             .from('categories')
             .select('*')
@@ -73,7 +73,7 @@ export async function getCategories(): Promise<Category[]> {
 // Fetch a single category by slug
 export async function getCategoryBySlug(slug: string): Promise<Category | undefined> {
     try {
-        const supabase = getSupabase();
+        const supabase = await getSupabase();
         const { data, error } = await supabase
             .from('categories')
             .select('*')
@@ -98,7 +98,7 @@ export async function getCategoryBySlug(slug: string): Promise<Category | undefi
 // Fetch products by category
 export async function getProductsByCategory(categorySlug: string): Promise<Product[]> {
     try {
-        const supabase = getSupabase();
+        const supabase = await getSupabase();
         // First get category ID
         const { data: category, error: catError } = await supabase
             .from('categories')
@@ -130,7 +130,7 @@ export async function getProductsByCategory(categorySlug: string): Promise<Produ
 // Fetch featured products
 export async function getFeaturedProducts(limit = 4): Promise<Product[]> {
     try {
-        const supabase = getSupabase();
+        const supabase = await getSupabase();
         const { data, error } = await supabase
             .from('products')
             .select(`
@@ -153,7 +153,7 @@ export async function getFeaturedProducts(limit = 4): Promise<Product[]> {
 // Fetch single product by ID or Slug
 export async function getProductById(idOrSlug: string): Promise<Product | undefined> {
     try {
-        const supabase = getSupabase();
+        const supabase = await getSupabase();
         // Check if it's a UUID
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
         const field = isUuid ? 'id' : 'slug';
@@ -183,7 +183,7 @@ export async function getProductById(idOrSlug: string): Promise<Product | undefi
 // Fetch related products
 export async function getRelatedProducts(productId: string, categorySlug: string, limit = 4): Promise<Product[]> {
     try {
-        const supabase = getSupabase();
+        const supabase = await getSupabase();
         const { data, error } = await supabase
             .from('products')
             .select(`
@@ -208,7 +208,7 @@ export async function getRelatedProducts(productId: string, categorySlug: string
 export async function getAllProducts(): Promise<Product[]> {
     console.log('[API] Fetching all public products...');
     try {
-        const supabase = getSupabase();
+        const supabase = await getSupabase();
         const { data, error } = await supabase
             .from('products')
             .select(`
